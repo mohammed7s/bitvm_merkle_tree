@@ -18,20 +18,7 @@ impl MerkleTreeGadget {
     pub(crate) fn query_and_verify_internal(logn: usize, is_sibling: bool) -> Script {
         script! {
             OP_DEPTH OP_1SUB OP_ROLL
-            OP_DEPTH OP_1SUB OP_ROLL
-            OP_DEPTH OP_1SUB OP_ROLL
-            OP_DEPTH OP_1SUB OP_ROLL
-
-            // copy-paste the 4 elements
-            //     ABCD -> CDAB -> CDABAB -> ABABCD-> ABABCDCD
-            //  -> ABCDCDAB -> ABCDABCD
-
-            OP_2SWAP
-            OP_2DUP
-            OP_2ROT
-            OP_2DUP
-            OP_2ROT
-            OP_2SWAP
+            OP_DUP
 
             if is_sibling {
                 OP_DEPTH OP_1SUB OP_ROLL
@@ -51,7 +38,7 @@ impl MerkleTreeGadget {
                 }
             }
 
-            5 OP_ROLL
+            OP_ROT
             OP_EQUALVERIFY
         }
     }
@@ -79,13 +66,11 @@ impl MerkleTreeGadget {
 
 #[cfg(test)]
 mod test {
-    //use crate::math::{CM31, M31, QM31};
     use crate::{MerkleTree, MerkleTreeGadget};
     use bitvm::treepp::*;
-    use rand::{Rng, RngCore, SeedableRng};
+    use rand::{Rng, SeedableRng};
     use rand::rngs::StdRng;
     use rand_chacha::ChaCha20Rng;
-    use rust_bitcoin_u31_or_u30::{u31ext_equalverify, QM31 as QM31Gadget};
 
     #[test]
     fn test_merkle_tree_verify() {
@@ -120,8 +105,8 @@ mod test {
                 { merkle_tree.root_hash.to_vec() }
                 { pos }
                 { verify_script.clone() }
-                //{ last_layer[pos as usize].to_vec() }
-                //{ u31ext_equalverify::<QM31Gadget>() }
+                { last_layer[pos as usize].to_vec() }
+                OP_EQUALVERIFY
                 OP_TRUE
             };
 
@@ -160,7 +145,7 @@ mod test {
                 { pos }
                 { verify_script.clone() }
                 { last_layer[(pos ^ 1) as usize].to_vec() }
-                { u31ext_equalverify::<QM31Gadget>() }
+                OP_EQUALVERIFY
                 OP_TRUE
             };
 
