@@ -71,6 +71,9 @@ mod test {
     use rand::{Rng, SeedableRng};
     use rand::rngs::StdRng;
     use rand_chacha::ChaCha20Rng;
+    use std::fs::File;
+    use std::io::Write;
+    use bitcoin::hashes::hex::FromHex;
 
     #[test]
     fn test_merkle_tree_verify() {
@@ -110,9 +113,48 @@ mod test {
                 OP_TRUE
             };
 
+            let mut file = match File::create("merkle_script.txt") {
+                Err(why) => panic!("Couldn't create file: {}", why),
+                Ok(file) => file,
+            };
+
+            // Write the contents of the script to the file
+            match file.write_all(script.as_bytes()) {
+                Err(why) => panic!("Couldn't write to file: {}", why),
+                Ok(_) => println!("Successfully wrote to merkle_script.txt"),
+            }
+
             let exec_result = execute_script(script);
             assert!(exec_result.success);
         }
+    }
+
+    #[test]
+    fn test_merkle_tree_bitcoin_tx() {
+        // hardcoded data obtained from block 10000: https://blockstream.info/block/000000000003ba27aa200b1cecaad478d2b00432346c3f1f3986da1afd33e506
+        let tx_hashes = [
+            "8c14f0db3df150123e6f3dbbf30f8b955a8249b62ac1d1ff16284aefa3d06d87",
+            "fff2525b8931402dd09222c50775608f75787bd2b87e56995a7bdd30f79702c4",
+            "6359f0868171b1d194cbee1af2f16ea598ae8fad666d9b012c8ed2b79a236ec4",
+            "e9a66845e05d5abc0ad04ec80f774a7e585c6e8db975962d069a522137b80c1d",
+        ];
+        let mut leaf_layer = vec![];
+        for tx_hash_str in tx_hashes {
+            let tx_hash_bytes: [u8; 32] = FromHex::from_hex(tx_hash_str).unwrap();
+            leaf_layer.push(tx_hash_bytes);
+            
+        }
+        let merkle_tree = MerkleTree::new(leaf_layer);
+        // Generate a proof for a specific position
+        let query_position = 2;
+        let proof = merkle_tree.query(query_position);
+        let verification_result = MerkleTree::verify(
+            merkle_tree.root_hash,
+            2, // logn = 2 since the leaf layer has 4 elements (2^2)
+            &proof,
+            query_position,
+        );
+        assert!(verification_result);
     }
 
     #[test]
